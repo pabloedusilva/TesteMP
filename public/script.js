@@ -61,7 +61,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const simulateSection = document.getElementById('simulate-section');
     const simulatePaymentBtn = document.getElementById('simulate-payment-btn');
     const notification = document.getElementById('notification');
-    const copySound = document.getElementById('copy-sound');
     const oruamCharacter = document.getElementById('oruam-character');
     const oruamText = document.getElementById('oruam-text');
     const totalDonorsSpan = document.getElementById('total-donors');
@@ -89,16 +88,14 @@ document.addEventListener('DOMContentLoaded', function() {
         'Fé minha tropa',
         'An Quem',
         'Vou me entregar tropa',
-        'Quero ver pegar no complexo'
-    ];
-    
-    // Lista de sons aleatórios do Oruam
-    const oruamSounds = [
-        'sounds/oruam-sound-1.mp3',
-        'sounds/oruam-sound-2.mp3',
-        'sounds/oruam-sound-3.mp3',
-        'sounds/oruam-sound-4.mp3',
-        'sounds/oruam-sound-5.mp3'
+        'Quero ver pegar no complexo',
+        'Herói dentro das grades',
+        'Nois é artista',
+        'Ela quer da, a buteta',
+        'Na rlk do Oruam',
+        'Vermelhão do ódio',
+        'Mauro ou Oruam',
+        'Vou vencer na música'
     ];
     
     // Função para alterar texto do Oruam
@@ -185,19 +182,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Inicializar sistema de slots
     initializeSlotSystem();
     
-    // Função para tocar som aleatório do Oruam
-    function playRandomOruamSound() {
-        const randomIndex = Math.floor(Math.random() * oruamSounds.length);
-        const audio = new Audio(oruamSounds[randomIndex]);
-        audio.volume = 0.7;
-        audio.play().catch(err => {
-            console.log('Erro ao reproduzir áudio:', err);
-        });
-    }
-    
     // Event listener para o personagem Oruam
     oruamCharacter.addEventListener('click', function() {
-        playRandomOruamSound();
+        // Mudar frase quando clicar
+        changeOruamText();
         
         // Adicionar animação de clique
         this.style.transform = 'scale(0.9)';
@@ -399,6 +387,45 @@ document.addEventListener('DOMContentLoaded', function() {
         closeModalBtn.addEventListener('click', closeSupportersModal);
     }
 
+    // Event listeners para o modal de disclaimer
+    const disclaimerLink = document.getElementById('disclaimer-link');
+    const disclaimerModal = document.getElementById('disclaimer-modal');
+    const closeDisclaimerBtn = document.getElementById('close-disclaimer-modal');
+
+    function openDisclaimerModal() {
+        if (disclaimerModal) {
+            disclaimerModal.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+    }
+
+    function closeDisclaimerModal() {
+        if (disclaimerModal) {
+            disclaimerModal.classList.remove('show');
+            document.body.style.overflow = '';
+        }
+    }
+
+    if (disclaimerLink) {
+        disclaimerLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            openDisclaimerModal();
+        });
+    }
+
+    if (closeDisclaimerBtn) {
+        closeDisclaimerBtn.addEventListener('click', closeDisclaimerModal);
+    }
+
+    // Fechar modal de disclaimer clicando fora
+    if (disclaimerModal) {
+        disclaimerModal.addEventListener('click', (e) => {
+            if (e.target === disclaimerModal) {
+                closeDisclaimerModal();
+            }
+        });
+    }
+
     // Fechar modal clicando fora
     if (supportersModal) {
         supportersModal.addEventListener('click', (e) => {
@@ -410,8 +437,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Fechar modal com ESC
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && supportersModal.classList.contains('show')) {
-            closeSupportersModal();
+        if (e.key === 'Escape') {
+            if (supportersModal && supportersModal.classList.contains('show')) {
+                closeSupportersModal();
+            }
+            if (disclaimerModal && disclaimerModal.classList.contains('show')) {
+                closeDisclaimerModal();
+            }
         }
     });
 
@@ -615,12 +647,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         navigator.clipboard.writeText(textToCopy).then(() => {
-            // Tocar efeito sonoro
-            if (copySound) {
-                copySound.currentTime = 0;
-                copySound.play().catch(() => {}); // Ignorar erro de áudio
-            }
-            
             showNotification('Código PIX copiado com sucesso!');
         }).catch(err => {
             console.error('Erro ao copiar texto: ', err);
@@ -707,9 +733,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (paymentSuccessModal) {
             paymentSuccessModal.classList.add('show');
             document.body.style.overflow = 'hidden';
-            
-            // Tocar som de sucesso (se disponível)
-            playRandomOruamSound();
         }
     }
     
