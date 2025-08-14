@@ -219,14 +219,22 @@ document.addEventListener('DOMContentLoaded', function() {
     // Carregar estatísticas
     async function loadStats() {
         try {
+            console.log('📊 Carregando estatísticas...');
             const response = await fetch('/stats');
             const stats = await response.json();
             
+            console.log('📊 Estatísticas recebidas:', stats);
+            
             if (totalDonorsSpan) {
-                totalDonorsSpan.textContent = stats.total_donors || 0;
+                const donors = stats.total_donors || 0;
+                totalDonorsSpan.textContent = donors;
+                console.log(`📊 Atualizando contador: ${donors} apoiadores`);
             }
         } catch (error) {
             console.error('Erro ao carregar estatísticas:', error);
+            if (totalDonorsSpan) {
+                totalDonorsSpan.textContent = '0';
+            }
         }
     }
     

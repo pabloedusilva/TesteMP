@@ -163,25 +163,51 @@ app.get('/payment-status/:paymentId', async (req, res) => {
       });
     }
     
-    // Para IDs reais do Mercado Pago
-    const payment = await mercadopago.payment.get(paymentId);
+    // Para IDs reais do Mercado Pago, primeiro verificar no banco
+    const stmtCheck = db.prepare('SELECT status FROM donations WHERE payment_id = ?');
+    const localDonation = stmtCheck.get([paymentId]);
+    stmtCheck.finalize();
     
-    if (payment.body.status === 'approved') {
-      const stmt = db.prepare(`
-        UPDATE donations 
-        SET status = 'paid', paid_at = CURRENT_TIMESTAMP 
-        WHERE payment_id = ? AND status != 'paid'
-      `);
-      stmt.run([paymentId]);
-      stmt.finalize();
-      console.log(`✅ Pagamento ${paymentId} aprovado!`);
+    // Se já está como 'paid' no banco, retornar aprovado
+    if (localDonation && localDonation.status === 'paid') {
+      console.log(`✅ Pagamento ${paymentId} já aprovado no banco local`);
+      return res.json({
+        status: 'approved',
+        payment_id: paymentId,
+        is_demo: false
+      });
     }
     
-    res.json({
-      status: payment.body.status,
-      payment_id: paymentId,
-      is_demo: false
-    });
+    // Tentar verificar com a API do Mercado Pago
+    try {
+      const payment = await mercadopago.payment.get(paymentId);
+      
+      if (payment.body.status === 'approved') {
+        const stmt = db.prepare(`
+          UPDATE donations 
+          SET status = 'paid', paid_at = CURRENT_TIMESTAMP 
+          WHERE payment_id = ? AND status != 'paid'
+        `);
+        const result = stmt.run([paymentId]);
+        stmt.finalize();
+        console.log(`✅ Pagamento ${paymentId} aprovado via API MP! Linhas atualizadas: ${result.changes}`);
+      }
+      
+      res.json({
+        status: payment.body.status,
+        payment_id: paymentId,
+        is_demo: false
+      });
+    } catch (mpError) {
+      console.log(`⚠️ Erro na API do MP para ${paymentId}:`, mpError.message);
+      // Retornar status do banco local como fallback
+      res.json({
+        status: localDonation ? localDonation.status : 'pending',
+        payment_id: paymentId,
+        is_demo: false,
+        fallback: true
+      });
+    }
     
   } catch (error) {
     console.error('Erro ao verificar status:', error);
@@ -324,11 +350,37 @@ app.get('/donations/pending', (req, res) => {
   });
 });
 
+// Lista de todas as doações (para debug)
+app.get('/donations/all', (req, res) => {
+  const query = `
+    SELECT donor_name, amount, status, payment_id, created_at, paid_at
+    FROM donations 
+    ORDER BY created_at DESC
+    LIMIT 50
+  `;
+
+  db.all(query, [], (err, rows) => {
+    if (err) {
+      console.error('Erro ao buscar todas as doações:', err);
+      return res.status(500).json({ error: 'Erro ao buscar todas as doações' });
+    }
+    console.log(`📋 Total de doações no banco: ${rows.length}`);
+    res.json(rows);
+  });
+});
+
 // Estatísticas
 app.get('/stats', (req, res) => {
   const query = `
     SELECT 
       COUNT(*) as total_donations,
+      COUNT(DISTINCT 
+        CASE 
+          WHEN donor_email IS NOT NULL AND donor_email != '' 
+          THEN donor_email 
+          ELSE donor_name 
+        END
+      ) as total_donors,
       SUM(amount) as total_amount,
       AVG(amount) as average_amount,
       MAX(amount) as highest_donation
@@ -341,8 +393,12 @@ app.get('/stats', (req, res) => {
       console.error('Erro ao buscar estatísticas:', err);
       return res.status(500).json({ error: 'Erro ao buscar estatísticas' });
     }
+    
+    console.log(`📊 Stats calculados: ${row ? row.total_donors : 0} apoiadores únicos, ${row ? row.total_donations : 0} doações`);
+    
     res.json(row || {
       total_donations: 0,
+      total_donors: 0,
       total_amount: 0,
       average_amount: 0,
       highest_donation: 0
