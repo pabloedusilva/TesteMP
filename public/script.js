@@ -67,12 +67,19 @@ document.addEventListener('DOMContentLoaded', function() {
     const totalDonorsSpan = document.getElementById('total-donors');
     const rankingList = document.getElementById('ranking-list');
     const slotReel = document.getElementById('slot-reel');
+    const viewAllBtn = document.getElementById('view-all-supporters-btn');
+    const supportersModal = document.getElementById('supporters-modal');
+    const closeModalBtn = document.getElementById('close-modal');
+    const supportersList = document.getElementById('supporters-list');
+    const supporterSearch = document.getElementById('supporter-search');
+    const clearSearchBtn = document.getElementById('clear-search');
     
     // Variáveis globais
     let currentPaymentId = null;
     let paymentCheckInterval = null;
     let currentDonorIndex = 0;
     let recentDonations = []; // Array para doações reais
+    let allSupporters = []; // Array para armazenar todos os apoiadores
     
     // Lista de frases do Oruam
     const oruamPhrases = [
@@ -285,6 +292,159 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     }
+
+    // Carregar todos os apoiadores para o modal
+    async function loadAllSupporters() {
+        try {
+            console.log('📋 Carregando todos os apoiadores...');
+            const response = await fetch('/all-supporters');
+            const supporters = await response.json();
+            
+            console.log('📋 Apoiadores recebidos:', supporters.length);
+            
+            // Armazenar os dados globalmente
+            allSupporters = supporters;
+            
+            // Renderizar a lista
+            renderSupportersList(allSupporters);
+            
+        } catch (error) {
+            console.error('Erro ao carregar apoiadores:', error);
+            if (supportersList) {
+                supportersList.innerHTML = `
+                    <div class="supporter-item">
+                        <div class="supporter-info">
+                            <div class="supporter-name">Erro ao carregar apoiadores</div>
+                            <div class="supporter-details">Tente novamente mais tarde</div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+    }
+
+    // Renderizar lista de apoiadores
+    function renderSupportersList(supporters) {
+        if (!supportersList) return;
+        
+        if (supporters.length === 0) {
+            supportersList.innerHTML = `
+                <div class="supporter-item">
+                    <div class="supporter-info">
+                        <div class="supporter-name">Nenhum apoiador encontrado</div>
+                        <div class="supporter-details">Tente uma busca diferente ou seja o primeiro a apoiar!</div>
+                    </div>
+                </div>
+            `;
+        } else {
+            supportersList.innerHTML = supporters.map((supporter, index) => {
+                return `
+                    <div class="supporter-item" style="animation-delay: ${index * 0.1}s">
+                        <div class="supporter-info">
+                            <div class="supporter-name">${supporter.donor_name}</div>
+                            <div class="supporter-details">
+                                <span>💝 ${supporter.donation_count} doação${supporter.donation_count > 1 ? 'ões' : ''}</span>
+                            </div>
+                        </div>
+                        <div class="supporter-amount">${formatCurrency(supporter.total_amount)}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+
+    // Filtrar apoiadores
+    function filterSupporters(searchTerm) {
+        const filtered = allSupporters.filter(supporter => 
+            supporter.donor_name.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+        renderSupportersList(filtered);
+    }
+
+    // Abrir modal
+    function openSupportersModal() {
+        // Limpar pesquisa
+        if (supporterSearch) {
+            supporterSearch.value = '';
+        }
+        if (clearSearchBtn) {
+            clearSearchBtn.style.display = 'none';
+        }
+        
+        loadAllSupporters();
+        supportersModal.classList.add('show');
+        document.body.style.overflow = 'hidden';
+        
+        // Focar no campo de pesquisa após abrir
+        setTimeout(() => {
+            if (supporterSearch) {
+                supporterSearch.focus();
+            }
+        }, 300);
+    }
+
+    // Fechar modal
+    function closeSupportersModal() {
+        supportersModal.classList.remove('show');
+        document.body.style.overflow = '';
+    }
+
+    // Event listeners para o modal
+    if (viewAllBtn) {
+        viewAllBtn.addEventListener('click', openSupportersModal);
+    }
+
+    if (closeModalBtn) {
+        closeModalBtn.addEventListener('click', closeSupportersModal);
+    }
+
+    // Fechar modal clicando fora
+    if (supportersModal) {
+        supportersModal.addEventListener('click', (e) => {
+            if (e.target === supportersModal) {
+                closeSupportersModal();
+            }
+        });
+    }
+
+    // Fechar modal com ESC
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && supportersModal.classList.contains('show')) {
+            closeSupportersModal();
+        }
+    });
+
+    // Event listeners para a pesquisa
+    if (supporterSearch) {
+        // Pesquisar enquanto digita
+        supporterSearch.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.trim();
+            
+            // Mostrar/ocultar botão de limpar
+            if (clearSearchBtn) {
+                clearSearchBtn.style.display = searchTerm ? 'block' : 'none';
+            }
+            
+            // Filtrar apoiadores
+            filterSupporters(searchTerm);
+        });
+
+        // Limpar pesquisa ao pressionar Enter (opcional)
+        supporterSearch.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+            }
+        });
+    }
+
+    if (clearSearchBtn) {
+        clearSearchBtn.addEventListener('click', () => {
+            supporterSearch.value = '';
+            clearSearchBtn.style.display = 'none';
+            filterSupporters(''); // Mostrar todos
+            supporterSearch.focus();
+        });
+    }
     
     // Mostrar QR Code
     function showQRCode(data) {
@@ -378,6 +538,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     loadStats();
                     loadRanking();
                     loadRecentDonations();
+                    
+                    // Se o modal estiver aberto, atualizar também
+                    if (supportersModal && supportersModal.classList.contains('show')) {
+                        loadAllSupporters();
+                    }
                 }
             } catch (error) {
                 console.error('Erro ao verificar status:', error);
@@ -501,6 +666,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Recarregar dados
                 loadStats();
                 loadRanking();
+                loadRecentDonations();
+                
+                // Se o modal estiver aberto, atualizar também
+                if (supportersModal && supportersModal.classList.contains('show')) {
+                    loadAllSupporters();
+                }
                 loadRecentDonations(); // Atualizar o slot também
                 
             } catch (error) {

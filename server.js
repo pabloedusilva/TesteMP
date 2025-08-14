@@ -288,7 +288,7 @@ app.post('/webhook', async (req, res) => {
   }
 });
 
-// Ranking das doações
+// Ranking das doações (Top 3)
 app.get('/ranking', (req, res) => {
   const query = `
     SELECT 
@@ -300,7 +300,7 @@ app.get('/ranking', (req, res) => {
     WHERE status = 'paid'
     GROUP BY donor_name
     ORDER BY total_amount DESC
-    LIMIT 10
+    LIMIT 3
   `;
 
   db.all(query, [], (err, rows) => {
@@ -308,6 +308,31 @@ app.get('/ranking', (req, res) => {
       console.error('Erro ao buscar ranking:', err);
       return res.status(500).json({ error: 'Erro ao buscar ranking' });
     }
+    res.json(rows);
+  });
+});
+
+// Todos os apoiadores (para o modal)
+app.get('/all-supporters', (req, res) => {
+  const query = `
+    SELECT 
+      donor_name,
+      donor_email,
+      SUM(amount) as total_amount,
+      COUNT(*) as donation_count
+    FROM donations 
+    WHERE status = 'paid'
+    GROUP BY donor_name, donor_email
+    ORDER BY total_amount DESC
+  `;
+
+  db.all(query, [], (err, rows) => {
+    if (err) {
+      console.error('Erro ao buscar todos os apoiadores:', err);
+      return res.status(500).json({ error: 'Erro ao buscar apoiadores' });
+    }
+    
+    console.log(`📋 Total de apoiadores únicos: ${rows.length}`);
     res.json(rows);
   });
 });
