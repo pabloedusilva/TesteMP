@@ -146,11 +146,15 @@ app.get('/payment-status/:paymentId', async (req, res) => {
   try {
     const { paymentId } = req.params;
     
+    console.log(`🔍 Verificando status do pagamento: ${paymentId}`);
+    
     // Se for ID de demonstração, verificar apenas no banco
     if (paymentId.startsWith('DEMO_')) {
       const stmt = db.prepare('SELECT status FROM donations WHERE payment_id = ?');
       const donation = stmt.get([paymentId]);
       stmt.finalize();
+      
+      console.log(`📊 Status DEMO encontrado no banco: ${donation ? donation.status : 'não encontrado'}`);
       
       return res.json({
         status: donation ? donation.status : 'pending',
@@ -190,10 +194,15 @@ app.post('/simulate-payment/:paymentId', (req, res) => {
   try {
     const { paymentId } = req.params;
     
+    console.log(`🔄 Tentativa de simular pagamento: ${paymentId}`);
+    
     // Funciona com credenciais de teste ou IDs de demonstração
     if (!process.env.MP_ACCESS_TOKEN.startsWith('TEST-') && !paymentId.startsWith('DEMO_')) {
+      console.log(`❌ Simulação negada - não é TEST ou DEMO: ${paymentId}`);
       return res.status(400).json({ error: 'Simulação só funciona em modo de teste ou demonstração' });
     }
+    
+    console.log(`✅ Simulação autorizada para: ${paymentId}`);
     
     const stmt = db.prepare(`
       UPDATE donations 
@@ -203,6 +212,8 @@ app.post('/simulate-payment/:paymentId', (req, res) => {
     
     const result = stmt.run([paymentId]);
     stmt.finalize();
+    
+    console.log(`📊 Resultado da atualização: ${result.changes} linhas afetadas`);
     
     if (result.changes > 0) {
       const isDemo = paymentId.startsWith('DEMO_');
@@ -214,7 +225,8 @@ app.post('/simulate-payment/:paymentId', (req, res) => {
         is_demo: isDemo
       });
     } else {
-      res.status(404).json({ error: 'Pagamento não encontrado' });
+      console.log(`❌ Nenhuma linha foi atualizada para: ${paymentId}`);
+      res.status(404).json({ error: 'Pagamento não encontrado ou já estava pago' });
     }
     
   } catch (error) {
@@ -277,7 +289,7 @@ app.get('/ranking', (req, res) => {
 // Lista de doações
 app.get('/donations', (req, res) => {
   const query = `
-    SELECT donor_name, amount, paid_at, status
+    SELECT donor_name, amount, paid_at, status, payment_id
     FROM donations 
     WHERE status = 'paid'
     ORDER BY paid_at DESC
@@ -288,6 +300,25 @@ app.get('/donations', (req, res) => {
     if (err) {
       console.error('Erro ao buscar doações:', err);
       return res.status(500).json({ error: 'Erro ao buscar doações' });
+    }
+    res.json(rows);
+  });
+});
+
+// Lista de doações pendentes (para debug)
+app.get('/donations/pending', (req, res) => {
+  const query = `
+    SELECT donor_name, amount, created_at, status, payment_id
+    FROM donations 
+    WHERE status = 'pending'
+    ORDER BY created_at DESC
+    LIMIT 20
+  `;
+
+  db.all(query, [], (err, rows) => {
+    if (err) {
+      console.error('Erro ao buscar doações pendentes:', err);
+      return res.status(500).json({ error: 'Erro ao buscar doações pendentes' });
     }
     res.json(rows);
   });

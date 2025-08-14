@@ -293,8 +293,12 @@ document.addEventListener('DOMContentLoaded', function() {
         // Mostrar informações do pagamento
         paymentInfo.classList.remove('hidden');
         
-        // Verificar se data.id existe antes de usar startsWith
-        const isDemo = data.id && data.id.startsWith('DEMO_');
+        // Verificar se data.payment_id ou data.id existe antes de usar startsWith
+        const paymentId = data.payment_id || data.id;
+        const isDemo = paymentId && paymentId.startsWith('DEMO_');
+        
+        // Definir currentPaymentId sempre que um QR Code for mostrado
+        currentPaymentId = paymentId;
         
         const statusClass = data.status === 'approved' ? 'status-approved' : 
                            isDemo ? 'status-demo' : 'status-pending';
@@ -306,24 +310,28 @@ document.addEventListener('DOMContentLoaded', function() {
             <div class="payment-status ${statusClass}">
                 ${statusText}
             </div>
-            <p><strong>ID do Pagamento:</strong> ${data.id || 'N/A'}</p>
+            <p><strong>ID do Pagamento:</strong> ${paymentId || 'N/A'}</p>
             <p><strong>Valor:</strong> ${formatCurrency(data.amount || 0)}</p>
         `;
         
         // Mostrar simulação se for DEMO
         if (isDemo) {
             simulateSection.classList.remove('hidden');
+            // Para pagamentos DEMO, também iniciar verificação de status
+            startPaymentStatusCheck(paymentId);
         }
         
-        // Iniciar verificação de status se não for DEMO e ID existir
-        if (data.id && !isDemo) {
-            startPaymentStatusCheck(data.id);
+        // Iniciar verificação de status se ID existir
+        if (paymentId && !isDemo) {
+            startPaymentStatusCheck(paymentId);
         }
     }
     
     // Verificar status do pagamento
     function startPaymentStatusCheck(paymentId) {
         currentPaymentId = paymentId;
+        
+        console.log(`🔍 Iniciando verificação de status para: ${paymentId}`);
         
         if (paymentCheckInterval) {
             clearInterval(paymentCheckInterval);
@@ -334,25 +342,39 @@ document.addEventListener('DOMContentLoaded', function() {
                 const response = await fetch(`/payment-status/${paymentId}`);
                 const data = await response.json();
                 
-                if (data.status === 'approved') {
+                console.log(`📊 Status recebido para ${paymentId}:`, data);
+                
+                if (data.status === 'approved' || data.status === 'paid') {
                     clearInterval(paymentCheckInterval);
-                    showNotification('🎉 Pagamento aprovado! Obrigado pela sua doação!');
+                    
+                    const isDemo = data.is_demo || paymentId.startsWith('DEMO_');
+                    const message = isDemo ? 
+                        '🎉 Pagamento DEMO aprovado! Obrigado pela simulação!' : 
+                        '🎉 Pagamento aprovado! Obrigado pela sua doação!';
+                    
+                    showNotification(message);
                     
                     // Atualizar status na interface
                     const statusElement = paymentInfo.querySelector('.payment-status');
                     if (statusElement) {
                         statusElement.className = 'payment-status status-approved';
-                        statusElement.textContent = '✅ Pago';
+                        statusElement.textContent = isDemo ? '✅ Pago (Simulado)' : '✅ Pago';
+                    }
+                    
+                    // Ocultar botão de simulação se for DEMO
+                    if (isDemo) {
+                        simulateSection.classList.add('hidden');
                     }
                     
                     // Recarregar dados
                     loadStats();
                     loadRanking();
+                    loadRecentDonations();
                 }
             } catch (error) {
                 console.error('Erro ao verificar status:', error);
             }
-        }, 5000); // Verificar a cada 5 segundos
+        }, 3000); // Verificar a cada 3 segundos
     }
     
     // Form de doação
@@ -429,7 +451,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Simular pagamento (apenas para DEMO)
     if (simulatePaymentBtn) {
         simulatePaymentBtn.addEventListener('click', async function() {
-            if (!currentPaymentId || !currentPaymentId.startsWith('DEMO_')) {
+            if (!currentPaymentId) {
+                showNotification('Nenhum pagamento ativo para simular');
+                return;
+            }
+            
+            if (!currentPaymentId.startsWith('DEMO_')) {
                 showNotification('Só é possível simular pagamentos DEMO');
                 return;
             }
@@ -438,14 +465,11 @@ document.addEventListener('DOMContentLoaded', function() {
             this.textContent = 'Simulando...';
             
             try {
-                const response = await fetch('/simulate-payment', {
+                const response = await fetch(`/simulate-payment/${currentPaymentId}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        payment_id: currentPaymentId
-                    })
+                    }
                 });
                 
                 const data = await response.json();
@@ -469,6 +493,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Recarregar dados
                 loadStats();
                 loadRanking();
+                loadRecentDonations(); // Atualizar o slot também
                 
             } catch (error) {
                 console.error('Erro:', error);
