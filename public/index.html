@@ -823,6 +823,78 @@
             background: #c5353c;
         }
 
+        /* Modal de Confirmação de Pagamento */
+        .payment-success-content {
+            max-width: 500px;
+            width: 90vw;
+            text-align: center;
+        }
+
+        .payment-success-body {
+            padding: 1rem 0;
+        }
+
+        .oruam-photo-container {
+            margin-bottom: 1.5rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .oruam-success-photo {
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 4px solid var(--primary);
+            box-shadow: 0 10px 30px rgba(230, 57, 70, 0.3);
+            animation: successPulse 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes successPulse {
+            0% { 
+                transform: scale(1);
+                box-shadow: 0 10px 30px rgba(230, 57, 70, 0.3);
+            }
+            100% { 
+                transform: scale(1.05);
+                box-shadow: 0 15px 40px rgba(230, 57, 70, 0.5);
+            }
+        }
+
+        .success-message h4 {
+            color: var(--primary);
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            font-weight: bold;
+        }
+
+        .success-message p {
+            margin-bottom: 0.8rem;
+            line-height: 1.6;
+            color: var(--light);
+        }
+
+        .donation-details {
+            background: rgba(230, 57, 70, 0.1);
+            padding: 1rem;
+            border-radius: 10px;
+            border: 1px solid rgba(230, 57, 70, 0.3);
+            margin: 1rem 0;
+        }
+
+        .amount-highlight {
+            color: var(--primary);
+            font-size: 1.3rem;
+            font-weight: bold;
+        }
+
+        .gratitude-message {
+            font-style: italic;
+            color: var(--accent);
+            font-size: 0.95rem;
+        }
+
         @media (max-width: 768px) {
             h1 {
                 font-size: 2rem;
@@ -931,7 +1003,7 @@
                 
                 <div class="form-group">
                     <label for="amount">Valor da Doação (R$):</label>
-                    <input type="number" id="amount" min="1" step="0.01" placeholder="10.00" required>
+                    <input type="number" id="amount" min="1" step="0.01" placeholder="1.00" required>
                 </div>
                 
                 <button type="submit" class="btn" id="generate-pix-btn">
@@ -1039,6 +1111,35 @@
             </div>
             <div class="modal-body" id="supporters-list">
                 <!-- Lista de apoiadores será carregada aqui -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmação de Pagamento -->
+    <div class="modal-overlay" id="payment-success-modal">
+        <div class="modal-content payment-success-content">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    Pagamento Confirmado!
+                </h3>
+                <button class="modal-close" id="close-payment-modal">×</button>
+            </div>
+            <div class="modal-body payment-success-body">
+                <div class="oruam-photo-container">
+                    <img src="https://s2-extra.glbimg.com/4F04mLXGTaj91cVNEZSXe8Wq23g=/1090x0:2245x1587/984x0/smart/filters:strip_icc()/i.s3.glbimg.com/v1/AUTH_1f551ea7087a47f39ead75f64041559a/internal_photos/bs/2025/y/v/AHDfEbQAqiBdWCu3p6Rg/texto-do-seu-paragrafo-2025-03-01t204136.399.png" 
+                         alt="Oruam agradece sua doação" 
+                         class="oruam-success-photo">
+                </div>
+                <div class="success-message">
+                    <h4>Cardiquê num mandou mais cria?</h4>
+                    <p>#soutaooruam</p>
+                    <p class="donation-details">
+                        <strong>Valor doado:</strong> <span id="confirmed-amount" class="amount-highlight">R$ 0,00</span>
+                    </p>
+                    <p class="gratitude-message">
+                        22 meu vulgo!
+                    </p>
+                </div>
             </div>
         </div>
     </div>

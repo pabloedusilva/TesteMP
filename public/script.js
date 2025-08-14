@@ -76,6 +76,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Variáveis globais
     let currentPaymentId = null;
+    let currentPaymentAmount = 0; // Adicionar variável para armazenar o valor atual
     let paymentCheckInterval = null;
     let currentDonorIndex = 0;
     let recentDonations = []; // Array para doações reais
@@ -450,6 +451,9 @@ document.addEventListener('DOMContentLoaded', function() {
     function showQRCode(data) {
         qrSection.classList.remove('hidden');
         
+        // Armazenar o valor do pagamento atual
+        currentPaymentAmount = data.amount || 0;
+        
         if (data.qr_code_base64) {
             qrCodeImg.src = `data:image/png;base64,${data.qr_code_base64}`;
         }
@@ -521,6 +525,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         '🎉 Pagamento aprovado! Obrigado pela sua doação!';
                     
                     showNotification(message);
+                    
+                    // Mostrar modal de confirmação de pagamento
+                    showPaymentSuccessModal(data.amount || currentPaymentAmount || 0);
                     
                     // Atualizar status na interface
                     const statusElement = paymentInfo.querySelector('.payment-status');
@@ -683,6 +690,61 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+    
+    // Funções do Modal de Confirmação de Pagamento
+    const paymentSuccessModal = document.getElementById('payment-success-modal');
+    const closePaymentModalBtn = document.getElementById('close-payment-modal');
+    const confirmedAmountSpan = document.getElementById('confirmed-amount');
+    
+    // Mostrar modal de confirmação de pagamento
+    function showPaymentSuccessModal(amount) {
+        // Atualizar o valor confirmado no modal
+        if (confirmedAmountSpan) {
+            confirmedAmountSpan.textContent = formatCurrency(amount);
+        }
+        
+        // Mostrar o modal
+        if (paymentSuccessModal) {
+            paymentSuccessModal.classList.add('show');
+            document.body.style.overflow = 'hidden';
+            
+            // Tocar som de sucesso (se disponível)
+            playRandomOruamSound();
+        }
+    }
+    
+    // Fechar modal de confirmação de pagamento
+    function closePaymentSuccessModal() {
+        if (paymentSuccessModal) {
+            paymentSuccessModal.classList.remove('show');
+            document.body.style.overflow = '';
+        }
+    }
+    
+    // Event listeners para o modal de confirmação
+    if (closePaymentModalBtn) {
+        closePaymentModalBtn.addEventListener('click', closePaymentSuccessModal);
+    }
+    
+    // Fechar modal clicando fora
+    if (paymentSuccessModal) {
+        paymentSuccessModal.addEventListener('click', (e) => {
+            if (e.target === paymentSuccessModal) {
+                closePaymentSuccessModal();
+            }
+        });
+    }
+    
+    // Fechar modal com ESC (atualizar o listener existente)
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            if (supportersModal && supportersModal.classList.contains('show')) {
+                closeSupportersModal();
+            } else if (paymentSuccessModal && paymentSuccessModal.classList.contains('show')) {
+                closePaymentSuccessModal();
+            }
+        }
+    });
     
     // Carregar dados iniciais
     loadStats();
